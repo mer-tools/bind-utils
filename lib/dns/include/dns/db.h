@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -260,6 +260,7 @@ struct dns_db {
  * Options that can be specified for dns_db_subtractrdataset().
  */
 #define DNS_DBSUB_EXACT			0x01
+#define DNS_DBSUB_WANTOLD		0x02
 
 /*@{*/
 /*%
@@ -1280,6 +1281,9 @@ dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
  *	resulting new rdataset in the database, unless the rdataset has
  *	become nonexistent.  If DNS_DBSUB_EXACT is set then all elements
  *	of 'rdataset' must exist at 'node'.
+ *
+ *\li	If DNS_DBSUB_WANTOLD is set and the entire rdataset was deleted
+ *	then return the original rdatatset in newrdataset if that existed.
  *
  * Requires:
  *

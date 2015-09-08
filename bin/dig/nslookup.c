@@ -585,7 +585,7 @@ version(void) {
 
 static void
 setoption(char *opt) {
-	if (strncasecmp(opt, "all", 4) == 0) {
+	if (strncasecmp(opt, "all", 3) == 0) {
 		show_settings(ISC_TRUE, ISC_FALSE);
 	} else if (strncasecmp(opt, "class=", 6) == 0) {
 		if (testclass(&opt[6]))
@@ -908,7 +908,7 @@ main(int argc, char **argv) {
 	setup_libs();
 	progname = argv[0];
 
-	setup_system();
+	setup_system(ISC_FALSE, ISC_FALSE);
 	parse_args(argc, argv);
 	if (keyfile[0] != 0)
 		setup_file_key();

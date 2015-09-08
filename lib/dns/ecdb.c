@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -114,7 +114,9 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	NULL,			/* putadditional */
 	rdataset_settrust,	/* settrust */
 	NULL,			/* expire */
-	NULL			/* clearprefetch */
+	NULL,			/* clearprefetch */
+	NULL,			/* setownercase */
+	NULL			/* getownercase */
 };
 
 typedef struct ecdb_rdatasetiter {

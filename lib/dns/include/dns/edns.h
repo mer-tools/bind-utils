@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,7 +24,7 @@
 #ifdef DRAFT_ANDREWS_EDNS1
 #undef DNS_EDNS_VERSION
 /*
- * Warning: this currently disables sending SIT requests in resolver.c
+ * Warning: this currently disables sending COOKIE requests in resolver.c
  */
 #define DNS_EDNS_VERSION 1 /* draft-andrews-edns1 */
 #endif

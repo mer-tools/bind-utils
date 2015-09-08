@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -101,9 +101,20 @@ isc_result_totext(isc_result_t);
  * Convert an isc_result_t into a string message describing the result.
  */
 
+const char *
+isc_result_toid(isc_result_t);
+/*%<
+ * Convert an isc_result_t into a string identifier such as
+ * "ISC_R_SUCCESS".
+ */
+
 isc_result_t
 isc_result_register(unsigned int base, unsigned int nresults,
 		    const char **text, isc_msgcat_t *msgcat, int set);
+
+isc_result_t
+isc_result_registerids(unsigned int base, unsigned int nresults,
+		       const char **ids, isc_msgcat_t *msgcat, int set);
 
 ISC_LANG_ENDDECLS
 

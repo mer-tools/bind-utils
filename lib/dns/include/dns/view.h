@@ -127,6 +127,7 @@ struct dns_view {
 	isc_boolean_t			enablednssec;
 	isc_boolean_t			enablevalidation;
 	isc_boolean_t			acceptexpired;
+	isc_boolean_t			requireservercookie;
 	dns_transfer_format_t		transfer_format;
 	dns_acl_t *			cacheacl;
 	dns_acl_t *			cacheonacl;
@@ -147,7 +148,7 @@ struct dns_view {
 	dns_rrl_t *			rrl;
 	isc_boolean_t			provideixfr;
 	isc_boolean_t			requestnsid;
-	isc_boolean_t			requestsit;
+	isc_boolean_t			sendcookie;
 	dns_ttl_t			maxcachettl;
 	dns_ttl_t			maxncachettl;
 	isc_uint32_t			nta_lifetime;
@@ -166,7 +167,7 @@ struct dns_view {
 	dns_name_t *			dlv;
 	dns_fixedname_t			dlv_fixed;
 	isc_uint16_t			maxudp;
-	isc_uint16_t			situdp;
+	isc_uint16_t			nocookieudp;
 	unsigned int			maxbits;
 	dns_aaaa_t			v4_aaaa;
 	dns_aaaa_t			v6_aaaa;
@@ -199,6 +200,9 @@ struct dns_view {
 
 	dns_zone_t *			managed_keys;
 	dns_zone_t *			redirect;
+	dns_name_t *			redirectzone;	/* points to redirectfixed
+							   when valid */
+	dns_fixedname_t 		redirectfixed;
 
 	/*
 	 * File and configuration data for zones added at runtime

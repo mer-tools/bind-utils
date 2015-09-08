@@ -32,6 +32,7 @@
 #include <isc/log.h>
 #include <isc/net.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/random.h>
 #include <isc/socket.h>
 #include <isc/stdtime.h>
@@ -87,6 +88,7 @@ static char program[256];
 static isc_socket_t *sock = NULL;
 static isc_uint32_t serial;
 static isc_boolean_t quiet = ISC_FALSE;
+static isc_boolean_t showresult = ISC_FALSE;
 
 static void rndc_startconnect(isc_sockaddr_t *addr, isc_task_t *task);
 
@@ -97,15 +99,15 @@ static void
 usage(int status) {
 	fprintf(stderr, "\
 Usage: %s [-b address] [-c config] [-s server] [-p port]\n\
-	[-k key-file ] [-y key] [-V] command\n\
+	[-k key-file ] [-y key] [-r] [-V] command\n\
 \n\
 command is one of the following:\n\
 \n\
   addzone zone [class [view]] { zone-options }\n\
-		Add zone to given view. Requires new-zone-file option.\n\
+		Add zone to given view. Requires allow-new-zones option.\n\
   delzone [-clean] zone [class [view]]\n\
-		Removes zone from given view. Requires new-zone-file option.\n\
-  dumpdb [-all|-cache|-zones] [view ...]\n\
+		Removes zone from given view.\n\
+  dumpdb [-all|-cache|-zones|-adb|-bad|-fail] [view ...]\n\
 		Dump cache(s) to the dump file (named_dump.db).\n\
   flush 	Flushes all of the server's caches.\n\
   flush [view]	Flushes the server's cache for a view.\n\
@@ -121,6 +123,15 @@ command is one of the following:\n\
 		process id.\n\
   loadkeys zone [class [view]]\n\
 		Update keys without signing immediately.\n\
+  managed-keys refresh [class [view]]\n\
+		Check trust anchor for RFC 5011 key changes\n\
+  managed-keys status [class [view]]\n\
+		Display RFC 5011 managed keys information\n\
+  managed-keys sync [class [view]]\n\
+		Write RFC 5011 managed keys to disk\n\
+  modzone zone [class [view]] { zone-options }\n\
+		Modify a zone's configuration.\n\
+		Requires allow-new-zones option.\n\
   notify zone [class [view]]\n\
 		Resend NOTIFY messages for the zone.\n\
   notrace	Set debugging level to 0.\n\
@@ -130,7 +141,7 @@ command is one of the following:\n\
 		Set a negative trust anchor, disabling DNSSEC validation\n\
 		for the given domain.\n\
 		Using -lifetime specifies the duration of the NTA, up\n\
-		to one day.\n\
+		to one week.\n\
 		Using -force prevents the NTA from expiring before its\n\
 		full lifetime, even if the domain can validate sooner.\n\
   nta -remove domain [view]\n\
@@ -150,6 +161,8 @@ command is one of the following:\n\
   scan		Scan available network interfaces for changes.\n\
   secroots [view ...]\n\
 		Write security roots to the secroots file.\n\
+  showzone zone [class [view]]\n\
+		Print a zone's configuration.\n\
   sign zone [class [view]]\n\
 		Update zone keys, and sign as needed.\n\
   signing -clear all zone [class [view]]\n\
@@ -286,6 +299,16 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 		fprintf(stderr, "%s: parsing response failed: %s\n",
 			progname, isc_result_totext(result));
 
+	if (showresult) {
+		isc_result_t eresult;
+
+		result = isccc_cc_lookupuint32(data, "result", &eresult);
+		if (result == ISC_R_SUCCESS)
+			printf("%s %u\n", isc_result_toid(eresult), eresult);
+		else
+			printf("NONE -1\n");
+	}
+
 	isc_event_free(&event);
 	isccc_sexpr_free(&response);
 	if (sends == 0 && recvs == 0) {
@@ -317,7 +340,7 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 		      " the command protocol,\n"
 		      "* this host is not authorized to connect,\n"
 		      "* the clocks are not synchronized,\n"
-		      "* the the key signing algorithm is incorrect, or\n"
+		      "* the key signing algorithm is incorrect, or\n"
 		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
@@ -774,7 +797,7 @@ main(int argc, char **argv) {
 
 	isc_commandline_errprint = ISC_FALSE;
 
-	while ((ch = isc_commandline_parse(argc, argv, "b:c:hk:Mmp:qs:Vy:"))
+	while ((ch = isc_commandline_parse(argc, argv, "b:c:hk:Mmp:qrs:Vy:"))
 	       != -1) {
 		switch (ch) {
 		case 'b':
@@ -815,6 +838,10 @@ main(int argc, char **argv) {
 
 		case 'q':
 			quiet = ISC_TRUE;
+			break;
+
+		case 'r':
+			showresult = ISC_TRUE;
 			break;
 
 		case 's':

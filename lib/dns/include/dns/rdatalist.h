@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist.h,v 1.22 2008/04/03 06:09:05 tbox Exp $ */
+/* $Id$ */
 
 #ifndef DNS_RDATALIST_H
 #define DNS_RDATALIST_H 1
@@ -58,6 +58,12 @@ struct dns_rdatalist {
 	dns_ttl_t			ttl;
 	ISC_LIST(dns_rdata_t)		rdata;
 	ISC_LINK(dns_rdatalist_t)	link;
+	/*%<
+	 * Case vector.  If the bit is set then the corresponding
+	 * character in the owner name needs to be AND'd with 0x20,
+	 * rendering that character upper case.
+	 */
+	unsigned char			upper[32];
 };
 
 ISC_LANG_BEGINDECLS

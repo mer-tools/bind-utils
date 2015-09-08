@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -189,8 +189,7 @@ dns_test_end(void) {
  * Create a view.
  */
 isc_result_t
-dns_test_makeview(const char *name, dns_view_t **viewp)
-{
+dns_test_makeview(const char *name, dns_view_t **viewp) {
 	isc_result_t result;
 	dns_view_t *view = NULL;
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -26,10 +26,10 @@ CDEFINES =
 CWARNINGS =
 
 DNSLIBS =
-ISCLIBS =
+ISCLIBS = ../../../../lib/isc/libisc.@A@ @ISC_OPENSSL_LIBS@
 
 DNSDEPLIBS =
-ISCDEPLIBS =
+ISCDEPLIBS = ../../../../lib/isc/libisc.@A@
 
 DEPLIBS =
 
@@ -45,8 +45,8 @@ SRCS =		edns-version.c
 
 all: edns-version@EXEEXT@
 
-edns-version@EXEEXT@: ${EDNSVERSIONOBJS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${EDNSVERSIONOBJS} ${LIBS}
+edns-version@EXEEXT@: ${EDNSVERSIONOBJS} ${ISCDEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${EDNSVERSIONOBJS} ${ISCLIBS} ${LIBS}
 
 clean distclean::
 	rm -f ${TARGETS}

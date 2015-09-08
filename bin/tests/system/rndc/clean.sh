@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011-2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -24,3 +24,4 @@ rm -f ns4/*.conf
 rm -f rndc.status
 rm -f rndc.output
 rm -f ns*/named.lock
+rm -f ns4/_default.nta

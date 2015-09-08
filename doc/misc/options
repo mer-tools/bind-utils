@@ -99,6 +99,8 @@ options {
         check-wildcard <boolean>;
         cleaning-interval <integer>;
         clients-per-query <integer>;
+        cookie-algorithm ( aes | sha1 | sha256 );
+        cookie-secret <string>;
         coresize <size>;
         datasize <size>;
         deallocate-on-exit <boolean>; // obsolete
@@ -142,6 +144,9 @@ options {
         empty-zones-enable <boolean>;
         fake-iquery <boolean>; // obsolete
         fetch-glue <boolean>; // obsolete
+        fetch-quota-params <integer> <fixedpoint> <fixedpoint> <fixedpoint>;
+        fetches-per-server <integer> [ ( drop | fail ) ];
+        fetches-per-zone <integer> [ ( drop | fail ) ];
         files <size>;
         filter-aaaa { <address_match_element>; ... }; // not configured
         filter-aaaa-on-v4 <filter_aaaa>; // not configured
@@ -167,6 +172,7 @@ options {
             <address_match_element>; ... };
         listen-on-v6 [ port <integer> ] [ dscp <integer> ] {
             <address_match_element>; ... };
+        lock-file ( <quoted_string> | none );
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys-directory <quoted_string>;
         masterfile-format ( text | raw | map );
@@ -200,7 +206,8 @@ options {
         multiple-cnames <boolean>; // obsolete
         named-xfer <quoted_string>; // obsolete
         no-case-compress { <address_match_element>; ... };
-        nosit-udp-size <integer>; // not configured
+        nocookie-udp-size <integer>;
+        nosit-udp-size <integer>; // obsolete
         notify <notifytype>;
         notify-delay <integer>;
         notify-rate <integer>;
@@ -212,6 +219,7 @@ options {
         nsec3-test-zone <boolean>; // test only
         nta-lifetime <ttlval>;
         nta-recheck <ttlval>;
+        nxdomain-redirect <string>;
         pid-file ( <quoted_string> | none );
         port <integer>;
         preferred-glue <string>;
@@ -246,20 +254,23 @@ options {
         request-expire <boolean>;
         request-ixfr <boolean>;
         request-nsid <boolean>;
-        request-sit <boolean>; // not configured
+        request-sit <boolean>; // obsolete
+        require-server-cookie <boolean>;
         reserved-sockets <integer>;
         resolver-query-timeout <integer>;
         response-policy { zone <quoted_string> [ policy ( given | disabled
             | passthru | no-op | drop | tcp-only | nxdomain | nodata |
-            cname <quoted_string> ) ] [ recursive-only <boolean> ] [
-            max-policy-ttl <integer> ]; ... } [ recursive-only <boolean> ]
-            [ break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
-            min-ns-dots <integer> ] [ qname-wait-recurse <boolean> ];
+            cname <quoted_string> ) ] [ recursive-only <boolean> ] [ log
+            <boolean> ] [ max-policy-ttl <integer> ]; ... } [
+            recursive-only <boolean> ] [ break-dnssec <boolean> ] [
+            max-policy-ttl <integer> ] [ min-ns-dots <integer> ] [
+            qname-wait-recurse <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
             <quoted_string> ] <string> <string>; ... };
         secroots-file <quoted_string>;
+        send-cookie <boolean>;
         serial-queries <integer>; // obsolete
         serial-query-rate <integer>;
         serial-update-method ( increment | unixtime | date );
@@ -272,7 +283,7 @@ options {
         sig-signing-signatures <integer>;
         sig-signing-type <integer>;
         sig-validity-interval <integer> [ <integer> ];
-        sit-secret <string>; // not configured
+        sit-secret <string>; // obsolete
         sortlist { <address_match_element>; ... };
         stacksize <size>;
         startup-notify-rate <integer>;
@@ -326,7 +337,8 @@ server <netprefix> {
         request-expire <boolean>;
         request-ixfr <boolean>;
         request-nsid <boolean>;
-        request-sit <boolean>; // not configured
+        request-sit <boolean>; // obsolete
+        send-cookie <boolean>;
         support-ixfr <boolean>; // obsolete
         tcp-only <boolean>;
         transfer-format ( many-answers | one-answer );
@@ -423,6 +435,9 @@ view <string> <optional_class> {
         empty-server <string>;
         empty-zones-enable <boolean>;
         fetch-glue <boolean>; // obsolete
+        fetch-quota-params <integer> <fixedpoint> <fixedpoint> <fixedpoint>;
+        fetches-per-server <integer> [ ( drop | fail ) ];
+        fetches-per-zone <integer> [ ( drop | fail ) ];
         filter-aaaa { <address_match_element>; ... }; // not configured
         filter-aaaa-on-v4 <filter_aaaa>; // not configured
         filter-aaaa-on-v6 <filter_aaaa>; // not configured
@@ -468,7 +483,8 @@ view <string> <optional_class> {
         minimal-responses <boolean>;
         multi-master <boolean>;
         no-case-compress { <address_match_element>; ... };
-        nosit-udp-size <integer>; // not configured
+        nocookie-udp-size <integer>;
+        nosit-udp-size <integer>; // obsolete
         notify <notifytype>;
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ] [
@@ -479,6 +495,7 @@ view <string> <optional_class> {
         nsec3-test-zone <boolean>; // test only
         nta-lifetime <ttlval>;
         nta-recheck <ttlval>;
+        nxdomain-redirect <string>;
         preferred-glue <string>;
         prefetch <integer> [ <integer> ];
         provide-ixfr <boolean>;
@@ -507,18 +524,21 @@ view <string> <optional_class> {
         request-expire <boolean>;
         request-ixfr <boolean>;
         request-nsid <boolean>;
-        request-sit <boolean>; // not configured
+        request-sit <boolean>; // obsolete
+        require-server-cookie <boolean>;
         resolver-query-timeout <integer>;
         response-policy { zone <quoted_string> [ policy ( given | disabled
             | passthru | no-op | drop | tcp-only | nxdomain | nodata |
-            cname <quoted_string> ) ] [ recursive-only <boolean> ] [
-            max-policy-ttl <integer> ]; ... } [ recursive-only <boolean> ]
-            [ break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
-            min-ns-dots <integer> ] [ qname-wait-recurse <boolean> ];
+            cname <quoted_string> ) ] [ recursive-only <boolean> ] [ log
+            <boolean> ] [ max-policy-ttl <integer> ]; ... } [
+            recursive-only <boolean> ] [ break-dnssec <boolean> ] [
+            max-policy-ttl <integer> ] [ min-ns-dots <integer> ] [
+            qname-wait-recurse <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
             <quoted_string> ] <string> <string>; ... };
+        send-cookie <boolean>;
         serial-update-method ( increment | unixtime | date );
         server <netprefix> {
                 bogus <boolean>;
@@ -537,7 +557,8 @@ view <string> <optional_class> {
                 request-expire <boolean>;
                 request-ixfr <boolean>;
                 request-nsid <boolean>;
-                request-sit <boolean>; // not configured
+                request-sit <boolean>; // obsolete
+                send-cookie <boolean>;
                 support-ixfr <boolean>; // obsolete
                 tcp-only <boolean>;
                 transfer-format ( many-answers | one-answer );

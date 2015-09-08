@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -100,6 +100,8 @@ dns_rriterator_first(dns_rriterator_t *it) {
 			continue;
 		}
 		dns_rdatasetiter_current(it->rdatasetit, &it->rdataset);
+		dns_rdataset_getownercase(&it->rdataset,
+					  dns_fixedname_name(&it->fixedname));
 		it->rdataset.attributes |= DNS_RDATASETATTR_LOADORDER;
 		it->result = dns_rdataset_first(&it->rdataset);
 		return (it->result);
@@ -140,6 +142,8 @@ dns_rriterator_nextrrset(dns_rriterator_t *it) {
 	if (it->result != ISC_R_SUCCESS)
 		return (it->result);
 	dns_rdatasetiter_current(it->rdatasetit, &it->rdataset);
+	dns_rdataset_getownercase(&it->rdataset,
+				  dns_fixedname_name(&it->fixedname));
 	it->rdataset.attributes |= DNS_RDATASETATTR_LOADORDER;
 	it->result = dns_rdataset_first(&it->rdataset);
 	return (it->result);

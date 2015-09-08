@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -117,6 +117,7 @@
 #include <isc/mem.h>
 #include <isc/once.h>
 #include <isc/platform.h>
+#include <isc/print.h>
 #include <isc/stdio.h>
 #include <isc/thread.h>
 #include <isc/util.h>
@@ -320,7 +321,7 @@ pk11_initialize(isc_mem_t *mctx, const char *engine) {
 		result = PK11_R_NODIGESTSERVICE;
 		goto unlock;
 	}
-#if defined(ISC_PLATFORM_USESIT) && defined(AES_SIT)
+#if defined(AES_SIT)
 	if (aes_token == NULL) {
 		result = PK11_R_NOAESSERVICE;
 		goto unlock;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,6 +38,7 @@ enum NtPaths {
 	RNDC_CONF_PATH,
 	NAMED_PID_PATH,
 	LWRESD_PID_PATH,
+	NAMED_LOCK_PATH,
 	LOCAL_STATE_DIR,
 	SYS_CONF_DIR,
 	RNDC_KEY_PATH,

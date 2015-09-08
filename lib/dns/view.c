@@ -221,7 +221,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->flush = ISC_FALSE;
 	view->dlv = NULL;
 	view->maxudp = 0;
-	view->situdp = 0;
+	view->nocookieudp = 0;
 	view->maxbits = 0;
 	view->v4_aaaa = dns_aaaa_ok;
 	view->v6_aaaa = dns_aaaa_ok;
@@ -230,8 +230,11 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
 	view->redirect = NULL;
+	view->redirectzone = NULL;
+	dns_fixedname_init(&view->redirectfixed);
 	view->requestnsid = ISC_FALSE;
-	view->requestsit = ISC_TRUE;
+	view->sendcookie = ISC_TRUE;
+	view->requireservercookie = ISC_FALSE;
 	view->new_zone_file = NULL;
 	view->new_zone_config = NULL;
 	view->cfg_destroy = NULL;
@@ -729,7 +732,8 @@ dns_view_createzonetable(dns_view_t *view) {
 isc_result_t
 dns_view_createresolver(dns_view_t *view,
 			isc_taskmgr_t *taskmgr,
-			unsigned int ntasks, unsigned int ndisp,
+			unsigned int ntasks,
+			unsigned int ndisp,
 			isc_socketmgr_t *socketmgr,
 			isc_timermgr_t *timermgr,
 			unsigned int options,
@@ -1330,7 +1334,7 @@ dns_view_findzonecut2(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 		if (result == ISC_R_SUCCESS) {
 			if (zfname != NULL &&
 			    (!dns_name_issubdomain(fname, zfname) ||
-			     (dns_zone_staticstub &&
+			     (dns_zone_gettype(zone) == dns_zone_staticstub &&
 			      dns_name_equal(fname, zfname)))) {
 				/*
 				 * We found a zonecut in the cache, but our
@@ -2065,7 +2069,7 @@ dns_view_setfailttl(dns_view_t *view, isc_uint32_t fail_ttl) {
 isc_result_t
 dns_view_saventa(dns_view_t *view) {
 	isc_result_t result;
-	isc_boolean_t remove = ISC_FALSE;
+	isc_boolean_t removefile = ISC_FALSE;
 	dns_ntatable_t *ntatable = NULL;
 	FILE *fp = NULL;
 
@@ -2079,7 +2083,7 @@ dns_view_saventa(dns_view_t *view) {
 
 	result = dns_view_getntatable(view, &ntatable);
 	if (result == ISC_R_NOTFOUND) {
-		remove = ISC_TRUE;
+		removefile = ISC_TRUE;
 		result = ISC_R_SUCCESS;
 		goto cleanup;
 	} else
@@ -2087,7 +2091,7 @@ dns_view_saventa(dns_view_t *view) {
 
 	result = dns_ntatable_save(ntatable, fp);
 	if (result == ISC_R_NOTFOUND) {
-		remove = ISC_TRUE;
+		removefile = ISC_TRUE;
 		result = ISC_R_SUCCESS;
 	}
 
@@ -2099,7 +2103,7 @@ dns_view_saventa(dns_view_t *view) {
 		isc_stdio_close(fp);
 
 	/* Don't leave half-baked NTA save files lying around. */
-	if (result != ISC_R_SUCCESS || remove)
+	if (result != ISC_R_SUCCESS || removefile)
 		(void) isc_file_remove(view->nta_file);
 
 	return (result);
@@ -2150,8 +2154,8 @@ dns_view_loadnta(dns_view_t *view) {
 			dns_fixedname_init(&fn);
 			ntaname = dns_fixedname_name(&fn);
 
-			isc_buffer_init(&b, name, len);
-			isc_buffer_add(&b, len);
+			isc_buffer_init(&b, name, (unsigned int)len);
+			isc_buffer_add(&b, (unsigned int)len);
 			CHECK(dns_name_fromtext(ntaname, &b, dns_rootname,
 						0, NULL));
 		}
@@ -2185,6 +2189,12 @@ dns_view_loadnta(dns_view_t *view) {
 
 			(void) dns_ntatable_add(ntatable, ntaname,
 						forced, 0, t);
+		} else {
+			char nb[DNS_NAME_FORMATSIZE];
+			dns_name_format(ntaname, nb, sizeof(nb));
+			isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC,
+				      DNS_LOGMODULE_NTA, ISC_LOG_INFO,
+				      "ignoring expired NTA at %s", nb);
 		}
 	};
 

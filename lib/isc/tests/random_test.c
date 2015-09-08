@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +19,7 @@
 #include <isc/random.h>
 #include <isc/result.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/util.h>
 
 #include <atf-c.h>
@@ -371,7 +372,7 @@ monobit(isc_mem_t *mctx, isc_uint16_t *values, size_t length) {
 	/* Debug message, not displayed when running via atf-run */
 	printf("numbits=%u, scount=%d\n", numbits, scount);
 
-	s_obs = fabs(scount) / sqrt(numbits);
+	s_obs = abs(scount) / sqrt(numbits);
 	p_value = erfc(s_obs / sqrt(2.0));
 
 	return (p_value);
@@ -484,6 +485,7 @@ blockfrequency(isc_mem_t *mctx, isc_uint16_t *values, size_t length) {
 	ATF_REQUIRE(numbits >= (mbits * numblocks));
 
 	pi = isc_mem_get(mctx, numblocks * sizeof(double));
+	ATF_REQUIRE(pi != NULL);
 
 	cur_word = 0;
 	for (i = 0; i < numblocks; i++) {

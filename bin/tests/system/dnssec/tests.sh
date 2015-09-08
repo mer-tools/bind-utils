@@ -1864,7 +1864,8 @@ sleep 4
 #
 # ns4 should be back up now. The NTA for bogus.example should still be
 # valid, whereas badds.example should not have been added during named
-# startup (as it had already expired).
+# startup (as it had already expired), the fact that it's ignored should
+# be logged.
 #
 $RNDC -c ../common/rndc.conf -s 10.53.0.4 -p 9953 nta -d > rndc.out.ns4.test$n.3
 lines=`wc -l < rndc.out.ns4.test$n.3`
@@ -1875,6 +1876,7 @@ grep "status: SERVFAIL" dig.out.ns4.test$n.4 > /dev/null && ret=1
 grep "flags:[^;]* ad[^;]*;" dig.out.ns4.test$n.4 > /dev/null && ret=1
 $DIG $DIGOPTS a.badds.example. a @10.53.0.4 > dig.out.ns4.test$n.5 || ret=1
 grep "status: SERVFAIL" dig.out.ns4.test$n.5 > /dev/null || ret=1
+grep "ignoring expired NTA at badds.example" ns4/named.run > /dev/null || ret=1
 
 # cleanup
 $RNDC -c ../common/rndc.conf -s 10.53.0.4 -p 9953 nta -remove bogus.example > rndc.out.ns4.test$n.6
@@ -2049,8 +2051,8 @@ then
     d=`$PERL ./ntadiff.pl "$ts_with_zone" "$added"`
     echo "d=$d" >> rndc.out.ns4.test$n.2
     # diff from $added(now) + 1week to the clamped NTA lifetime should be
-    # less than a few seconds.
-    [ $d -lt 10 ] || ret=1
+    # less than a few seconds (handle daylight saving changes by adding 3600).
+    [ $d -lt 3610 ] || ret=1
 else
     echo "I: skipped ntadiff test; install PERL module Time::Piece"
 fi
@@ -2075,6 +2077,7 @@ else
     echo "I:The DNSSEC update test requires the Net::DNS library." >&2
 fi
 
+n=`expr $n + 1`
 echo "I:checking managed key maintenance has not started yet ($n)"
 ret=0
 [ -f "ns4/managed-keys.bind.jnl" ] && ret=1
@@ -2949,6 +2952,15 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:check that CDS records are signed using KSK by dnssec-signzone ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cds cds.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 #
 # Test for +sigchase with a null set of trusted keys.
 #
@@ -2984,6 +2996,57 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:check that CDS records are signed using KSK by with dnssec-auto ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cds cds-auto.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that a lone non matching CDS record is rejected ($n)"
+ret=0
+(
+echo zone cds-update.secure
+echo server 10.53.0.2 5300
+echo update delete cds-update.secure CDS
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cds-update.secure |
+grep "DNSKEY.257" | sed 's/DNSKEY.257/DNSKEY 258/' |
+$DSFROMKEY -C -A -f - -T 1 cds-update.secure |
+sed "s/^/update add /"
+echo send
+) | $NSUPDATE > nsupdate.out.test$n 2>&1
+grep "update failed: REFUSED" nsupdate.out.test$n > /dev/null || ret=1
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cds cds-update.secure > dig.out.test$n
+lines=`awk '$4 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-10} -eq 0 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that CDS records are signed using KSK when added by nsupdate ($n)"
+ret=0
+(
+echo zone cds-update.secure
+echo server 10.53.0.2 5300
+echo update delete cds-update.secure CDS
+echo send
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cds-update.secure |
+grep "DNSKEY.257" |
+$DSFROMKEY -C -f - -T 1 cds-update.secure |
+sed "s/^/update add /"
+echo send
+) | $NSUPDATE
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cds cds-update.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+lines=`awk '$4 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 echo "I:checking that positive unknown NSEC3 hash algorithm with OPTOUT does validate ($n)"
 ret=0
 $DIG $DIGOPTS +noauth +noadd +nodnssec +adflag -p 5300 @10.53.0.3 optout-unknown.example SOA > dig.out.ns3.test$n
@@ -2992,6 +3055,32 @@ grep "status: NOERROR," dig.out.ns3.test$n > /dev/null || ret=1
 grep "status: NOERROR," dig.out.ns4.test$n > /dev/null || ret=1
 grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || ret=1
 grep "ANSWER: 1," dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that a non matching CDS record is accepted with a matching CDS record ($n)"
+ret=0
+(
+echo zone cds-update.secure
+echo server 10.53.0.2 5300
+echo update delete cds-update.secure CDS
+echo send
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cds-update.secure |
+grep "DNSKEY.257" |
+$DSFROMKEY -C -f - -T 1 cds-update.secure |
+sed "s/^/update add /"
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cds-update.secure |
+grep "DNSKEY.257" | sed 's/DNSKEY.257/DNSKEY 258/' |
+$DSFROMKEY -C -A -f - -T 1 cds-update.secure |
+sed "s/^/update add /"
+echo send
+) | $NSUPDATE
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cds cds-update.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+lines=`awk '$4 == "CDS" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 4 || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -3006,12 +3095,30 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:check that CDNSKEY records are signed using KSK by dnssec-signzone ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cdnskey cdnskey.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 echo "I:checking that negative unknown NSEC3 hash algorithm with OPTOUT does not validate ($n)"
 ret=0
 $DIG $DIGOPTS +noauth +noadd +nodnssec +adflag -p 5300 @10.53.0.3 optout-unknown.example A > dig.out.ns3.test$n
 $DIG $DIGOPTS +noauth +noadd +nodnssec +adflag -p 5300 @10.53.0.4 optout-unknown.example A > dig.out.ns4.test$n
 grep "status: NOERROR," dig.out.ns3.test$n > /dev/null || ret=1
 grep "status: SERVFAIL," dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that CDNSKEY records are signed using KSK by with dnssec-auto ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cdnskey cdnskey-auto.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -3027,6 +3134,25 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:check that a lone non matching CDNSKEY record is rejected ($n)"
+ret=0
+(
+echo zone cdnskey-update.secure
+echo server 10.53.0.2 5300
+echo update delete cdnskey-update.secure CDNSKEY
+echo send
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cdnskey-update.secure |
+sed -n -e "s/^/update add /" -e 's/DNSKEY.257/CDNSKEY 258/p'
+echo send
+) | $NSUPDATE > nsupdate.out.test$n 2>&1
+grep "update failed: REFUSED" nsupdate.out.test$n > /dev/null || ret=1
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cdnskey cdnskey-update.secure > dig.out.test$n
+lines=`awk '$4 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-10} -eq 0 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 echo "I:checking that unknown DNSKEY algorithm + unknown NSEC3 has algorithm validates as insecure ($n)"
 ret=0
 $DIG $DIGOPTS +noauth +noadd +nodnssec +adflag -p 5300 @10.53.0.3 dnskey-nsec3-unknown.example A > dig.out.ns3.test$n
@@ -3038,6 +3164,25 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:check that CDNSKEY records are signed using KSK when added by nsupdate ($n)"
+ret=0
+(
+echo zone cdnskey-update.secure
+echo server 10.53.0.2 5300
+echo update delete cdnskey-update.secure CDNSKEY
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cdnskey-update.secure |
+sed -n -e "s/^/update add /" -e 's/DNSKEY.257/CDNSKEY 257/p'
+echo send
+) | $NSUPDATE
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cdnskey cdnskey-update.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+lines=`awk '$4 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 1 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 echo "I:checking initialization with a revoked managed key ($n)"
 ret=0
 cp ns5/named2.conf ns5/named.conf
@@ -3045,6 +3190,27 @@ $RNDC -c ../common/rndc.conf -s 10.53.0.5 -p 9953 reconfig 2>&1 | sed 's/^/I:ns5
 sleep 3
 $DIG $DIGOPTS +dnssec -p 5300 @10.53.0.5 SOA . > dig.out.ns5.test$n
 grep "status: SERVFAIL" dig.out.ns5.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that a non matching CDNSKEY record is accepted with a matching CDNSKEY record ($n)"
+ret=0
+(
+echo zone cdnskey-update.secure
+echo server 10.53.0.2 5300
+echo update delete cdnskey-update.secure CDNSKEY
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cdnskey-update.secure |
+sed -n -e "s/^/update add /" -e 's/DNSKEY.257/CDNSKEY 257/p'
+$DIG $DIGOPTS +noall +answer @10.53.0.2 dnskey cdnskey-update.secure |
+sed -n -e "s/^/update add /" -e 's/DNSKEY.257/CDNSKEY 258/p'
+echo send
+) | $NSUPDATE
+$DIG $DIGOPTS +noall +answer @10.53.0.2 cdnskey cdnskey-update.secure > dig.out.test$n
+lines=`awk '$4 == "RRSIG" && $5 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
+lines=`awk '$4 == "CDNSKEY" {print}' dig.out.test$n | wc -l`
+test ${lines:-0} -eq 2 || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

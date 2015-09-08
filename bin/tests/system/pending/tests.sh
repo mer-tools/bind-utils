@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2010, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -33,7 +33,7 @@ replace_data()
 	_newdata=$4
 
 	_ret=0
-	$NSUPDATE -d <<END>> nsupdate.out.test 2>&1 || _ret=1
+	$NSUPDATE -d <<END >> nsupdate.out.test 2>&1 || _ret=1
 server 10.53.0.2 5300
 update delete ${_dname} 30 ${_rr} ${_olddata}
 update add ${_dname} 30 ${_rr} ${_newdata}

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2013-2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,5 +15,9 @@
 # PERFORMANCE OF THIS SOFTWARE.
 
 rm -f dig.ns*.test*
-rm -f ns2/example.bk
 rm -f ns*/named.lock
+rm -f ns1/dynamic.db
+rm -f ns1/dynamic.db.jnl
+rm -f ns2/dynamic.bk
+rm -f ns2/dynamic.bk.jnl
+rm -f ns2/example.bk

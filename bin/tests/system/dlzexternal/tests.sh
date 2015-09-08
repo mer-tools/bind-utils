@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2010-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2010-2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -22,7 +22,7 @@ SYSTEMTESTTOP=..
 status=0
 n=0
 
-DIGOPTS="@10.53.0.1 -p 5300"
+DIGOPTS="@10.53.0.1 -p 5300 +nocookie"
 
 newtest() {
 	n=`expr $n + 1`

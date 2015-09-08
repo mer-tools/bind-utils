@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -26,3 +26,4 @@ rm -f ns1/named.conf
 rm -rf ns1/named_dir
 rm -f ns1/named_deflog
 rm -f ns*/named.lock
+rm -f ns1/query_log

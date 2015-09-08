@@ -131,9 +131,9 @@ struct dig_lookup {
 		besteffort,
 		dnssec,
 		expire,
-#ifdef ISC_PLATFORM_USESIT
-		sit,
-#endif
+		sendcookie,
+		seenbadcookie,
+		badcookie,
 		nsid,   /*% Name Server ID (RFC 5001) */
 		header_only,
 		ednsneg;
@@ -191,13 +191,12 @@ isc_boolean_t	sigchase;
 	isc_uint32_t msgcounter;
 	dns_fixedname_t fdomain;
 	isc_sockaddr_t *ecs_addr;
-#ifdef ISC_PLATFORM_USESIT
-	char *sitvalue;
-#endif
+	char *cookie;
 	dns_ednsopt_t *ednsopts;
 	unsigned int ednsoptscnt;
 	isc_dscp_t dscp;
 	unsigned int ednsflags;
+	dns_opcode_t opcode;
 };
 
 /*% The dig_query structure */
@@ -305,7 +304,7 @@ extern int idnoptions;
  * Routines in dighost.c.
  */
 isc_result_t
-get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr);
+get_address(char *host, in_port_t myport, isc_sockaddr_t *sockaddr);
 
 int
 getaddresses(dig_lookup_t *lookup, const char *host, isc_result_t *resultp);
@@ -346,7 +345,7 @@ void
 setup_libs(void);
 
 void
-setup_system(void);
+setup_system(isc_boolean_t ipv4only, isc_boolean_t ipv6only);
 
 isc_result_t
 parse_uint(isc_uint32_t *uip, const char *value, isc_uint32_t max,

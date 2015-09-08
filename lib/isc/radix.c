@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2007-2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -520,8 +520,10 @@ isc_radix_insert(isc_radix_tree_t *radix, isc_radix_node_t **target,
 	}
 	new_node->parent = NULL;
 	new_node->l = new_node->r = NULL;
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		new_node->node_num[i] = -1;
+		new_node->data[i] = NULL;
+	}
 	radix->num_active_node++;
 
 	if (source != NULL) {

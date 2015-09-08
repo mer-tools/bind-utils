@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007-2010, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007-2010, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -92,9 +92,9 @@ test -f $verdir/version || {
 rm $verdir/version
 rmdir $verdir
 
-shorthash=`git ls-remote $repo refs/heads/$tag | cut -c1-8`
+shorthash=`git ls-remote $repo refs/heads/$tag | cut -c1-7`
 if [ -z "$shorthash" ]; then
-        shorthash=`git ls-remote $repo refs/tags/$tag | cut -c1-8`
+        shorthash=`git ls-remote $repo refs/tags/$tag | cut -c1-7`
 fi
 if [ -z "$shorthash" ]; then
         echo "Unable to determine hash for $tag, aborting."

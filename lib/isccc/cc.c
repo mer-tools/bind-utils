@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -207,7 +207,7 @@ table_towire(isccc_sexpr_t *alist, isc_buffer_t **buffer) {
 	isccc_sexpr_t *kv, *elt, *k, *v;
 	char *ks;
 	isc_result_t result;
-	size_t len;
+	unsigned int len;
 
 	for (elt = isccc_alist_first(alist);
 	     elt != NULL;
@@ -216,7 +216,7 @@ table_towire(isccc_sexpr_t *alist, isc_buffer_t **buffer) {
 		k = ISCCC_SEXPR_CAR(kv);
 		ks = isccc_sexpr_tostring(k);
 		v = ISCCC_SEXPR_CDR(kv);
-		len = strlen(ks);
+		len = (unsigned int)strlen(ks);
 		INSIST(len <= 255U);
 		/*
 		 * Emit the key name.
@@ -224,7 +224,7 @@ table_towire(isccc_sexpr_t *alist, isc_buffer_t **buffer) {
 		result = isc_buffer_reserve(buffer, 1 + len);
 		if (result != ISC_R_SUCCESS)
 			return (ISC_R_NOSPACE);
-		isc_buffer_putuint8(*buffer, len);
+		isc_buffer_putuint8(*buffer, (isc_uint8_t)len);
 		isc_buffer_putmem(*buffer, (const unsigned char *) ks, len);
 		/*
 		 * Emit the value.
@@ -509,7 +509,7 @@ verify(isccc_sexpr_t *alist, unsigned char *data, unsigned int length,
 		unsigned char *value;
 
 		value = (unsigned char *) isccc_sexpr_tostring(hmac);
-		if (!isc_safe_memcmp(value, digestb64, HMD5_LENGTH))
+		if (!isc_safe_memequal(value, digestb64, HMD5_LENGTH))
 			return (ISCCC_R_BADAUTH);
 	} else {
 		unsigned char *value;
@@ -518,7 +518,7 @@ verify(isccc_sexpr_t *alist, unsigned char *data, unsigned int length,
 		value = (unsigned char *) isccc_sexpr_tostring(hmac);
 		GET8(valalg, value);
 		if ((valalg != algorithm) ||
-		    (!isc_safe_memcmp(value, digestb64, HSHA_LENGTH)))
+		    !isc_safe_memequal(value, digestb64, HSHA_LENGTH))
 			return (ISCCC_R_BADAUTH);
 	}
 

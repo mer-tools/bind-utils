@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,6 +27,7 @@
 #include <isc/log.h>
 #include <isc/mem.h>
 #include <isc/net.h>
+#include <isc/print.h>
 #include <isc/sockaddr.h>
 #include <isc/socket.h>
 #include <isc/task.h>
@@ -170,7 +171,6 @@ sendquery(isc_task_t *task) {
 
 	dns_name_init(qname, NULL);
 	dns_name_clone(dns_fixedname_name(&queryname), qname);
-	dns_rdataset_init(qrdataset);
 	dns_rdataset_makequestion(qrdataset, dns_rdataclass_in,
 				  dns_rdatatype_a);
 	ISC_LIST_APPEND(qname->list, qrdataset, link);

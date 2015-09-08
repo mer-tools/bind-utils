@@ -66,19 +66,25 @@ RANDFILE=$TOP/bin/tests/system/random.data
 # v6synth
 SUBDIRS="acl additional allow_query addzone autosign builtin
 	 cacheclean case checkconf @CHECKDS@ checknames checkzone
-	 @COVERAGE@ database delv dlv dlvauto dlz dlzexternal dname
-	 dns64 dnssec dsdigest dscp ecdsa ednscompliance emptyzones
-	 filter-aaaa formerr forward geoip glue gost ixfr inline
-	 legacy limits logfileconfig lwresd
-	 masterfile masterformat metadata mkeys
-	 notify nslookup nsupdate pending pipelined @PKCS11_TEST@
-	 reclimit redirect resolver rndc rpz rrl rrchecker rrsetorder
-	 rsabigexponent runtime sit sfcache smartsign sortlist spf
-	 staticstub statistics stub tcp tkey tsig tsiggss unknown
-	 upforwd verify views wildcard xfer xferquota zero zonechecks"
+	 cookie @COVERAGE@ database digdelv dlv dlvauto dlz dlzexternal
+	 dname dns64 dnssec dsdigest dscp ecdsa ednscompliance
+	 emptyzones fetchlimit filter-aaaa formerr forward geoip glue gost
+	 ixfr inline legacy limits logfileconfig lwresd masterfile
+	 masterformat metadata mkeys notify nslookup nsupdate pending
+	 pipelined @PKCS11_TEST@ reclimit redirect resolver rndc
+	 rpz rpzrecurse rrl rrchecker rrsetorder rsabigexponent
+	 runtime sfcache smartsign sortlist spf staticstub statistics
+	 stub tcp tkey tsig tsiggss unknown upforwd verify views
+	 wildcard xfer xferquota zero zonechecks"
 
 # Use the CONFIG_SHELL detected by configure for tests
 SHELL=@SHELL@
+
+# CURL will be empty if no program was found by configure
+CURL=@CURL@
+
+# XMLLINT will be empty if no program was found by configure
+XMLLINT=@XMLLINT@
 
 # PERL will be an empty string if no perl interpreter was found.
 PERL=@PERL@
@@ -94,6 +100,8 @@ else
 	TESTSOCK6=false
 fi
 
+. ${TOP}/version
+
 export NAMED LWRESD DIG NSUPDATE KEYGEN KEYFRLAB SIGNER KEYSIGNER KEYSETTOOL \
        PERL SUBDIRS RNDC CHECKZONE PK11GEN PK11LIST PK11DEL TESTSOCK6 \
-       JOURNALPRINT ARPANAME RESOLVE RRCHECKER NSLOOKUP
+       JOURNALPRINT ARPANAME RESOLVE RRCHECKER NSLOOKUP DESCRIPTION

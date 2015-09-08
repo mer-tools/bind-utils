@@ -40,6 +40,44 @@
     <itemizedlist>
       <listitem>
 	<para>
+	  An incorrect boundary check in the OPENPGPKEY rdatatype
+	  could trigger an assertion failure. This flaw is disclosed
+	  in CVE-2015-5986. [RT #40286]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A buffer accounting error could trigger an assertion failure
+	  when parsing certain malformed DNSSEC keys.
+	</para>
+	<para>
+	  This flaw was discovered by Hanno B&#xc3b6;ck of the Fuzzing
+	  Project, and is disclosed in CVE-2015-5722. [RT #40212]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A specially crafted query could trigger an assertion failure
+	  in message.c.
+	</para>
+	<para>
+	  This flaw was discovered by Jonathan Foote, and is disclosed
+	  in CVE-2015-5477. [RT #40046]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  On servers configured to perform DNSSEC validation, an
+	  assertion failure could be triggered on answers from
+	  a specially configured server.
+	</para>
+	<para>
+	  This flaw was discovered by Breno Silveira Soares, and is
+	  disclosed in CVE-2015-4620. [RT #39795]
+	</para>
+      </listitem> 
+      <listitem>
+	<para>
 	  On servers configured to perform DNSSEC validation using
 	  managed trust anchors (i.e., keys configured explicitly
 	  via <command>managed-keys</command>, or implicitly 
@@ -102,6 +140,58 @@
     <itemizedlist>
       <listitem>
 	<para>
+	  New quotas have been added to limit the queries that are
+	  sent by recursive resolvers to authoritative servers
+	  experiencing denial-of-service attacks. When configured,
+	  these options can both reduce the harm done to authoritative
+	  servers and also avoid the resource exhaustion that can be
+	  experienced by recursives when they are being used as a
+	  vehicle for such an attack.
+	</para>
+	<itemizedlist>
+	  <listitem>
+	    <para>
+	      <option>fetches-per-server</option> limits the number of
+	      simultaneous queries that can be sent to any single
+	      authoritative server.  The configured value is a starting
+	      point; it is automatically adjusted downward if the server is
+	      partially or completely non-responsive. The algorithm used to
+	      adjust the quota can be configured via the
+	      <option>fetch-quota-params</option> option.
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      <option>fetches-per-zone</option> limits the number of
+	      simultaneous queries that can be sent for names within a
+	      single domain.  (Note: Unlike "fetches-per-server", this
+	      value is not self-tuning.)
+	    </para>
+	  </listitem>
+	</itemizedlist>
+	<para>
+	  Statistics counters have also been added to track the number
+	  of queries affected by these quotas.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  New statistics counters have been added to track traffic
+	  sizes, as specified in RSSAC002.  Query and response
+	  message sizes are broken up into ranges of histogram buckets:
+	  TCP and UDP queries of size 0-15, 16-31, ..., 272-288, and 288+,
+	  and TCP and UDP responses of size 0-15, 16-31, ..., 4080-4095,
+	  and 4096+.  These values can be accessed via the XML and JSON
+	  statistics channels at, for example,
+	  <ulink url="http://localhost:8888/xml/v3/traffic"
+		  >http://localhost:8888/xml/v3/traffic</ulink>
+	  or
+	  <ulink url="http://localhost:8888/json/v1/traffic"
+		  >http://localhost:8888/json/v1/traffic</ulink>.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
 	  The serial number of a dynamically updatable zone can
 	  now be set using
 	  <command>rndc signing -serial <replaceable>number</replaceable> <replaceable>zonename</replaceable></command>.
@@ -135,7 +225,7 @@
 	  can be changed by setting the <option>nta-lifetime</option> in
 	  <filename>named.conf</filename>. When added, NTAs are stored in a
 	  file (<filename><replaceable>viewname</replaceable>.nta</filename>)
-	  in order to persist across restarts of the named server.
+	  in order to persist across restarts of the <command>named</command> server.
 	</para>
       </listitem>
       <listitem>
@@ -224,7 +314,7 @@
       <listitem>
 	<para>
 	  <command>named -L <replaceable>filename</replaceable></command>
-	  causes named to send log messages to the specified file by
+	  causes <command>named</command> to send log messages to the specified file by
 	  default instead of to the system log.
 	</para>
       </listitem>
@@ -266,10 +356,13 @@
 	  other name server processes are running before starting up.
 	  This is implemented in two ways: 1) by refusing to start
 	  if the configured network interfaces all return "address
-	  in use", and 2) by acquiring a file lock on
-	  <filename>/var/run/named/named.lock</filename>, or on a different
-	  file specified via the <command>named -X</command> command
-	  line option.
+	  in use", and 2) by attempting to acquire a lock on a file
+	  specified by the <option>lock-file</option> option or
+	  the <command>-X</command> command line option.  The
+	  default lock file is
+	  <filename>/var/run/named/named.lock</filename>.
+	  Specifying <literal>none</literal> will disable the lock
+	  file check.
 	</para>
       </listitem>
       <listitem>
@@ -325,6 +418,36 @@
 	  can be used to check status of trust anchors or to force keys
 	  to be refreshed.  Also, the managed-keys data file now has
 	  easier-to-read comments. [RT #38458]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  An <command>--enable-querytrace</command> configure switch is
+	  now available to enable very verbose query tracelogging. This
+	  option can only be set at compile time. This option has a
+	  negative performance impact and should be used only for
+	  debugging. [RT #37520]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A new <command>tcp-only</command> option can be specified
+	  in <command>server</command> statements to force
+	  <command>named</command> to connect to the specified
+	  server via TCP. [RT #37800]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The <command>nxdomain-redirect</command> option specifies
+	  a DNS namespace to use for NXDOMAIN redirection. When a 
+	  recursive lookup returns NXDOMAIN, a second lookup is
+	  initiated with the specified name appended to the query
+	  name. This allows NXDOMAIN redirection data to be supplied
+	  by multiple zones configured on the server or by recursive
+	  queries to other servers. (The older method, using
+	  a single <command>type redirect</command> zone, has
+	  better average performance but is less flexible.) [RT #37989]
 	</para>
       </listitem>
     </itemizedlist>
@@ -423,11 +546,63 @@
       </listitem>
       <listitem>
 	<para>
-	  If named is not configured to validate the answer then
+	  If <command>named</command> is not configured to validate the answer then
 	  allow fallback to plain DNS on timeout even when we know
 	  the server supports EDNS.  This will allow the server to
 	  potentially resolve signed queries when TCP is being
 	  blocked.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Large inline-signing changes should be less disruptive.
+	  Signature generation is now done incrementally; the number
+	  of signatures to be generated in each quantum is controlled
+	  by "sig-signing-signatures <replaceable>number</replaceable>;".
+	  [RT #37927]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The experimental SIT option (code point 65001) of BIND
+	  9.10.0 through BIND 9.10.2 has been replaced with the COOKIE
+	  option (code point 10). It is no longer experimental, and
+	  is sent by default, by both <command>named</command> and
+	  <command>dig</command>.
+	</para>
+	<para>
+	  The SIT-related named.conf options have been marked as
+	  obsolete, and are otherwise ignored.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When <command>dig</command> receives a truncated (TC=1)
+	  response or a BADCOOKIE response code from a server, it
+	  will automatically retry the query using the server COOKIE
+	  that was returned by the server in its initial response.
+	  [RT #39047]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A alternative NXDOMAIN redirect method (nxdomain-redirect)
+	  which allows the redirect information to be looked up from
+	  a namespace on the Internet rather than requiring a zone
+	  to be configured on the server is now available.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Retrieving the local port range from net.ipv4.ip_local_port_range
+	  on Linux is now supported.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Within the <option>response-policy</option> option, it is now
+	  possible to configure RPZ rewrite logging on a per-zone basis
+	  using the <option>log</option> clause.
 	</para>
       </listitem>
     </itemizedlist>
@@ -519,10 +694,10 @@
 	</para>
       </listitem>
       <listitem>
-        <para>
+	<para>
 	  Built-in "empty" zones did not correctly inherit the
 	  "allow-transfer" ACL from the options or view. [RT #38310]
-        </para>
+	</para>
       </listitem>
       <listitem>
 	<para>
@@ -534,8 +709,78 @@
 	<para>
 	  Fixed some bugs in RFC 5011 trust anchor management,
 	  including a memory leak and a possible loss of state
-	  information.[RT #38458]
+	  information. [RT #38458]
 	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Asynchronous zone loads were not handled correctly when the
+	  zone load was already in progress; this could trigger a crash
+	  in zt.c. [RT #37573]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A race during shutdown or reconfiguration could
+	  cause an assertion failure in mem.c. [RT #38979]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Some answer formatting options didn't work correctly with
+	  <command>dig +short</command>. [RT #39291]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Several bugs have been fixed in the RPZ implementation:
+	</para>
+	<itemizedlist>
+	  <listitem>
+	    <para>
+	      Policy zones that did not specifically require recursion
+	      could be treated as if they did; consequently, setting
+	      <command>qname-wait-recurse no;</command> was
+	      sometimes ineffective.  This has been corrected.
+	      In most configurations, behavioral changes due to this
+	      fix will not be noticeable. [RT #39229]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could crash if policy zones were updated (e.g.
+	      via <command>rndc reload</command> or an incoming zone
+	      transfer) while RPZ processing was still ongoing for an
+	      active query. [RT #39415]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      On servers with one or more policy zones configured as
+	      slaves, if a policy zone updated during regular operation
+	      (rather than at startup) using a full zone reload, such as
+	      via AXFR, a bug could allow the RPZ summary data to fall out
+	      of sync, potentially leading to an assertion failure in
+	      rpz.c when further incremental updates were made to the
+	      zone, such as via IXFR. [RT #39567]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could match a shorter prefix than what was
+	      available in CLIENT-IP policy triggers, and so, an
+	      unexpected action could be taken. This has been
+	      corrected. [RT #39481]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could crash if a reload of an RPZ zone was
+	      initiated while another reload of the same zone was
+	      already in progress. [RT #39649]
+	    </para>
+	  </listitem>
+	</itemizedlist>
       </listitem>
     </itemizedlist>
   </sect2>

@@ -53,6 +53,11 @@ options {\n\
 	automatic-interface-scan yes;\n\
 	bindkeys-file \"" NS_SYSCONFDIR "/bind.keys\";\n\
 #	blackhole {none;};\n"
+#if defined(HAVE_OPENSSL_AES) || defined(HAVE_OPENSSL_EVP_AES)
+"	cookie-algorithm aes;\n"
+#else
+"	cookie-algorithm sha256;\n"
+#endif
 #ifndef WIN32
 "	coresize default;\n\
 	datasize default;\n\
@@ -62,13 +67,13 @@ options {\n\
 "#	session-keyfile \"" NS_LOCALSTATEDIR "/run/named/session.key\";\n\
 	session-keyname local-ddns;\n\
 	session-keyalg hmac-sha256;\n\
-	deallocate-on-exit true;\n\
+#	deallocate-on-exit <obsolete>;\n\
 #	directory <none>\n\
 	dump-file \"named_dump.db\";\n\
-	fake-iquery no;\n\
-	has-old-clients false;\n\
+#	fake-iquery <obsolete>;\n\
+#	has-old-clients <obsolete>;\n\
 	heartbeat-interval 60;\n\
-	host-statistics no;\n\
+#	host-statistics <obsolete>;\n\
 	interface-interval 60;\n\
 #	keep-response-order {none;};\n\
 	listen-on {any;};\n\
@@ -76,12 +81,13 @@ options {\n\
 	match-mapped-addresses no;\n\
 	max-rsa-exponent-size 0; /* no limit */\n\
 	memstatistics-file \"named.memstats\";\n\
-	multiple-cnames no;\n\
+#	multiple-cnames <obsolete>;\n\
 #	named-xfer <obsolete>;\n\
 	nta-lifetime 3600;\n\
 	nta-recheck 300;\n\
 	notify-rate 20;\n\
 #	pid-file \"" NS_LOCALSTATEDIR "/run/named/named.pid\"; /* or /lwresd.pid */\n\
+#	lock-file \"" NS_LOCALSTATEDIR "/run/named/named.lock\";\n\
 	port 53;\n\
 	prefetch 2 9;\n\
 	recursing-file \"named.recursing\";\n\
@@ -96,12 +102,12 @@ options {\n\
 	recursive-clients 1000;\n\
 	resolver-query-timeout 10;\n\
 	rrset-order { order random; };\n\
-	serial-queries 20;\n\
+#	serial-queries <obsolete>;\n\
 	serial-query-rate 20;\n\
 	server-id none;\n\
 	startup-notify-rate 20;\n\
 	statistics-file \"named.stats\";\n\
-	statistics-interval 60;\n\
+#	statistics-interval <obsolete>;\n\
 	tcp-clients 150;\n\
 	tcp-listen-queue 10;\n\
 #	tkey-dhkey <none>\n\
@@ -110,19 +116,13 @@ options {\n\
 	transfers-per-ns 2;\n\
 	transfers-in 10;\n\
 	transfers-out 10;\n\
-	treat-cr-as-space true;\n\
-	use-id-pool true;\n\
+#	treat-cr-as-space <obsolete>;\n\
+#	use-id-pool <obsolete>;\n\
 	use-ixfr true;\n\
 	edns-udp-size 4096;\n\
 	max-udp-size 4096;\n\
-"
-#ifdef ISC_PLATFORM_USESIT
-"\
-	nosit-udp-size 4096;\n\
-	request-sit true;\n\
-"
-#endif
-"\
+	nocookie-udp-size 4096;\n\
+	send-cookie true;\n\
 	request-nsid false;\n\
 	reserved-sockets 512;\n\
 \n\
@@ -145,8 +145,8 @@ options {\n\
 	provide-ixfr true;\n\
 	request-ixfr true;\n\
 	request-expire true;\n\
-	fetch-glue no;\n\
-	rfc2308-type1 no;\n\
+#	fetch-glue <obsolete>;\n\
+#	rfc2308-type1 <obsolete>;\n\
 	additional-from-auth true;\n\
 	additional-from-cache true;\n\
 	query-source address *;\n\
@@ -154,7 +154,7 @@ options {\n\
 	notify-source *;\n\
 	notify-source-v6 *;\n\
 	cleaning-interval 0;  /* now meaningless */\n\
-	min-roots 2;\n\
+#	min-roots <obsolete>;\n\
 	lame-ttl 600;\n\
 	servfail-ttl 10;\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\
@@ -173,6 +173,8 @@ options {\n\
 	dnssec-enable yes;\n\
 	dnssec-validation yes; \n\
 	dnssec-accept-expired no;\n\
+	fetches-per-zone 0;\n\
+	fetch-quota-params 100 0.1 0.3 0.7;\n\
 	clients-per-query 10;\n\
 	max-clients-per-query 100;\n\
 	max-recursion-depth 7;\n\
@@ -180,6 +182,8 @@ options {\n\
 	zero-no-soa-ttl-cache no;\n\
 	nsec3-test-zone no;\n\
 	allow-new-zones no;\n\
+	fetches-per-server 0;\n\
+	require-server-cookie no;\n\
 "
 #ifdef HAVE_GEOIP
 "\
@@ -204,7 +208,7 @@ options {\n\
 	dialup no;\n\
 #	forward <none>\n\
 #	forwarders <none>\n\
-	maintain-ixfr-base no;\n\
+#	maintain-ixfr-base <obsolete>;\n\
 #	max-ixfr-log-size <obsolete>\n\
 	transfer-source *;\n\
 	transfer-source-v6 *;\n\
@@ -298,7 +302,8 @@ ns_config_parsedefaults(cfg_parser_t *parser, cfg_obj_t **conf) {
 
 	isc_buffer_init(&b, defaultconf, sizeof(defaultconf) - 1);
 	isc_buffer_add(&b, sizeof(defaultconf) - 1);
-	return (cfg_parse_buffer(parser, &b, &cfg_type_namedconf, conf));
+	return (cfg_parse_buffer2(parser, &b, __FILE__,
+				  &cfg_type_namedconf, conf));
 }
 
 isc_result_t
@@ -464,10 +469,6 @@ ns_config_getiplist(const cfg_obj_t *config, const cfg_obj_t *list,
 	}
 
 	if (dscpsp != NULL) {
-		dscps = isc_mem_get(mctx, count * sizeof(isc_dscp_t));
-		if (dscps == NULL)
-			return (ISC_R_NOMEMORY);
-
 		dscpobj = cfg_tuple_get(list, "dscp");
 		if (dscpobj != NULL && cfg_obj_isuint32(dscpobj)) {
 			if (cfg_obj_asuint32(dscpobj) > 63) {
@@ -478,11 +479,18 @@ ns_config_getiplist(const cfg_obj_t *config, const cfg_obj_t *list,
 			}
 			dscp = (isc_dscp_t)cfg_obj_asuint32(dscpobj);
 		}
+
+		dscps = isc_mem_get(mctx, count * sizeof(isc_dscp_t));
+		if (dscps == NULL)
+			return (ISC_R_NOMEMORY);
 	}
 
 	addrs = isc_mem_get(mctx, count * sizeof(isc_sockaddr_t));
-	if (addrs == NULL)
+	if (addrs == NULL) {
+		if (dscps != NULL)
+			isc_mem_put(mctx, dscps, count * sizeof(isc_dscp_t));
 		return (ISC_R_NOMEMORY);
+	}
 
 	for (element = cfg_list_first(addrlist);
 	     element != NULL;
@@ -572,7 +580,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 	const cfg_obj_t *portobj;
 	const cfg_obj_t *dscpobj;
 	in_port_t port;
-	isc_dscp_t dscp;
+	isc_dscp_t dscp = -1;
 	dns_fixedname_t fname;
 	isc_sockaddr_t *addrs = NULL;
 	isc_dscp_t *dscps = NULL;
@@ -621,7 +629,8 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 			cfg_obj_log(dscpobj, ns_g_lctx, ISC_LOG_ERROR,
 				    "dscp value '%u' is out of range",
 				    cfg_obj_asuint32(dscpobj));
-			return (ISC_R_RANGE);
+			result = ISC_R_RANGE;
+			goto cleanup;
 		}
 		dscp = (isc_dscp_t)cfg_obj_asuint32(dscpobj);
 	}

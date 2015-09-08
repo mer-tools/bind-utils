@@ -116,9 +116,7 @@ static in_port_t port = 53;
 static isc_dscp_t dscp = -1;
 static unsigned char cookie_secret[33];
 static int onfly = 0;
-#ifdef ISC_PLATFORM_USESIT
-static char sitvalue[256];
-#endif
+static char hexcookie[81];
 
 struct query {
 	char textname[MXNAME]; /*% Name we're going to be looking up */
@@ -130,10 +128,8 @@ struct query {
 	isc_boolean_t have_zflag;
 	isc_boolean_t dnssec;
 	isc_boolean_t expire;
-#ifdef ISC_PLATFORM_USESIT
-	isc_boolean_t sit;
-	char *sitvalue;
-#endif
+	isc_boolean_t send_cookie;
+	char *cookie;
 	isc_boolean_t nsid;
 	dns_rdatatype_t rdtype;
 	dns_rdataclass_t rdclass;
@@ -488,7 +484,7 @@ cleanup:
 /*%
  * Add EDNS0 option record to a message.  Currently, the only supported
  * options are UDP buffer size, the DO bit, and EDNS options
- * (e.g., NSID, SIT, client-subnet)
+ * (e.g., NSID, COOKIE, client-subnet)
  */
 static void
 add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_uint16_t edns,
@@ -504,14 +500,12 @@ add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_uint16_t edns,
 	CHECK("dns_message_setopt", result);
 }
 
-#ifdef ISC_PLATFORM_USESIT
 static void
 compute_cookie(unsigned char *cookie, size_t len) {
 	/* XXXMPA need to fix, should be per server. */
 	INSIST(len >= 8U);
 	memmove(cookie, cookie_secret, 8);
 }
-#endif
 
 static isc_result_t
 sendquery(struct query *query, isc_task_t *task)
@@ -562,7 +556,6 @@ sendquery(struct query *query, isc_task_t *task)
 
 	dns_name_init(qname, NULL);
 	dns_name_clone(dns_fixedname_name(&queryname), qname);
-	dns_rdataset_init(qrdataset);
 	dns_rdataset_makequestion(qrdataset, query->rdclass,
 				  query->rdtype);
 	ISC_LIST_APPEND(qname->list, qrdataset, link);
@@ -575,10 +568,7 @@ sendquery(struct query *query, isc_task_t *task)
 		unsigned int flags;
 		int i = 0;
 		char ecsbuf[20];
-#ifdef ISC_PLATFORM_USESIT
-		unsigned char cookie[8];
-		char sitbuf[256];
-#endif
+		unsigned char cookie[40];
 
 		if (query->udpsize == 0)
 			query->udpsize = 4096;
@@ -598,7 +588,9 @@ sendquery(struct query *query, isc_task_t *task)
 			struct sockaddr *sa;
 			struct sockaddr_in *sin;
 			struct sockaddr_in6 *sin6;
+			const isc_uint8_t *addr;
 			size_t addrl;
+			isc_uint8_t mask;
 			isc_buffer_t b;
 
 			sa = &query->ecs_addr->type.sa;
@@ -606,6 +598,10 @@ sendquery(struct query *query, isc_task_t *task)
 
 			/* Round up prefix len to a multiple of 8 */
 			addrl = (prefixlen + 7) / 8;
+			if (prefixlen % 8 == 0)
+				mask = 0xff;
+			else
+				mask = 0xffU << (8 - (prefixlen % 8));
 
 			INSIST(i < DNS_EDNSOPTIONS);
 			opts[i].code = DNS_OPT_CLIENT_SUBNET;
@@ -614,47 +610,61 @@ sendquery(struct query *query, isc_task_t *task)
 			isc_buffer_init(&b, ecsbuf, sizeof(ecsbuf));
 			if (sa->sa_family == AF_INET) {
 				sin = (struct sockaddr_in *) sa;
+				addr = (isc_uint8_t *) &sin->sin_addr;
+				/* family */
 				isc_buffer_putuint16(&b, 1);
+				/* source prefix-length */
 				isc_buffer_putuint8(&b, prefixlen);
+				/* scope prefix-length */
 				isc_buffer_putuint8(&b, 0);
-				isc_buffer_putmem(&b,
-					  (isc_uint8_t *) &sin->sin_addr,
-					  (unsigned int) addrl);
+				/* address */
+				if (addrl > 0) {
+					isc_buffer_putmem(&b, addr, addrl - 1);
+					isc_buffer_putuint8(&b,
+							    (addr[addrl - 1] &
+							     mask));
+				}
 			} else {
 				sin6 = (struct sockaddr_in6 *) sa;
+				addr = (isc_uint8_t *) &sin6->sin6_addr;
+				/* family */
 				isc_buffer_putuint16(&b, 2);
+				/* source prefix-length */
 				isc_buffer_putuint8(&b, prefixlen);
+				/* scope prefix-length */
 				isc_buffer_putuint8(&b, 0);
-				isc_buffer_putmem(&b,
-					  (isc_uint8_t *) &sin6->sin6_addr,
-					  (unsigned int) addrl);
+				/* address */
+				if (addrl > 0) {
+					isc_buffer_putmem(&b, addr, addrl - 1);
+					isc_buffer_putuint8(&b,
+							    (addr[addrl - 1] &
+							     mask));
+				}
 			}
 
 			opts[i].value = (isc_uint8_t *) ecsbuf;
 			i++;
 		}
 
-#ifdef ISC_PLATFORM_USESIT
-		if (query->sit) {
+		if (query->send_cookie) {
 			INSIST(i < DNS_EDNSOPTIONS);
-			opts[i].code = DNS_OPT_SIT;
-			if (query->sitvalue != NULL) {
+			opts[i].code = DNS_OPT_COOKIE;
+			if (query->cookie != NULL) {
 				isc_buffer_t b;
 
-				isc_buffer_init(&b, sitbuf, sizeof(sitbuf));
-				result = isc_hex_decodestring(query->sitvalue,
+				isc_buffer_init(&b, cookie, sizeof(cookie));
+				result = isc_hex_decodestring(query->cookie,
 							      &b);
 				CHECK("isc_hex_decodestring", result);
 				opts[i].value = isc_buffer_base(&b);
 				opts[i].length = isc_buffer_usedlength(&b);
 			} else {
-				compute_cookie(cookie, sizeof(cookie));
+				compute_cookie(cookie, 8);
 				opts[i].length = 8;
 				opts[i].value = cookie;
 			}
 			i++;
 		}
-#endif
 
 		if (query->expire) {
 			INSIST(i < DNS_EDNSOPTIONS);
@@ -785,9 +795,7 @@ help(void) {
 "                 +[no]zflag          (Set Z flag in query)\n"
 "                 +[no]dnssec         (Request DNSSEC records)\n"
 "                 +[no]expire         (Request time to expire)\n"
-#ifdef ISC_PLATFORM_USESIT
-"                 +[no]sit[=###]      (Request a Source Identity Token)\n"
-#endif
+"                 +[no]cookie[=###]   (Send a COOKIE option)\n"
 "                 +[no]nsid           (Request Name Server ID)\n",
 	stdout);
 }
@@ -908,6 +916,8 @@ parse_netprefix(isc_sockaddr_t **sap, const char *value) {
 	}
 
 	sa = isc_mem_allocate(mctx, sizeof(*sa));
+	if (sa == NULL)
+		fatal("out of memory");
 	if (inet_pton(AF_INET6, value, &in6) == 1) {
 		isc_sockaddr_fromin6(sa, &in6, 0);
 		parsed = ISC_TRUE;
@@ -1033,9 +1043,7 @@ plus_option(char *option, struct query *query, isc_boolean_t global)
 	char *cmd, *value, *ptr, *code;
 	isc_uint32_t num;
 	isc_boolean_t state = ISC_TRUE;
-#ifdef ISC_PLATFORM_USESIT
 	size_t n;
-#endif
 
 	strncpy(option_store, option, sizeof(option_store));
 	option_store[sizeof(option_store) - 1] = 0;
@@ -1157,9 +1165,29 @@ plus_option(char *option, struct query *query, isc_boolean_t global)
 			display_class = state;
 			break;
 		case 'o': /* comments */
-			FULLCHECK("comments");
-			GLOBAL();
-			display_comments = state;
+			switch (cmd[2]) {
+			case 'm':
+				FULLCHECK("comments");
+				GLOBAL();
+				display_comments = state;
+				break;
+			case 'o':
+				FULLCHECK("cookie");
+				if (state && query->edns == -1)
+					query->edns = 0;
+				query->send_cookie = state;
+				if (value != NULL) {
+					n = strlcpy(hexcookie, value,
+						    sizeof(hexcookie));
+					if (n >= sizeof(hexcookie))
+						fatal("COOKIE data too large");
+					query->cookie = hexcookie;
+				} else
+					query->cookie = NULL;
+				break;
+			default:
+				goto invalid_option;
+			}
 			break;
 		case 'r':
 			FULLCHECK("crypto");
@@ -1337,21 +1365,6 @@ plus_option(char *option, struct query *query, isc_boolean_t global)
 				display_rrcomments = ISC_FALSE;
 			}
 			break;
-#ifdef ISC_PLATFORM_USESIT
-		case 'i':
-			FULLCHECK("sit");
-			if (state && query->edns == -1)
-				query->edns = 0;
-			query->sit = state;
-			if (value != NULL) {
-				n = strlcpy(sitvalue, value, sizeof(sitvalue));
-				if (n >= sizeof(sitvalue))
-					fatal("SIT data too large");
-				query->sitvalue = sitvalue;
-			} else
-				query->sitvalue = NULL;
-			break;
-#endif
 		case 'p': /* split */
 			FULLCHECK("split");
 			GLOBAL();
@@ -1703,10 +1716,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv)
 		default_query.have_zflag = ISC_FALSE;
 		default_query.dnssec = ISC_FALSE;
 		default_query.expire = ISC_FALSE;
-#ifdef ISC_PLATFORM_USESIT
-		default_query.sit = ISC_FALSE;
-		default_query.sitvalue = NULL;
-#endif
+		default_query.send_cookie = ISC_FALSE;
+		default_query.cookie = NULL;
 		default_query.nsid = ISC_FALSE;
 		default_query.rdtype = dns_rdatatype_a;
 		default_query.rdclass = dns_rdataclass_in;

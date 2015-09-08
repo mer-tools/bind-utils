@@ -122,6 +122,7 @@ static cfg_type_t cfg_type_optional_facility;
 static cfg_type_t cfg_type_optional_keyref;
 static cfg_type_t cfg_type_optional_port;
 static cfg_type_t cfg_type_optional_dscp;
+static cfg_type_t cfg_type_optional_uint32;
 static cfg_type_t cfg_type_options;
 static cfg_type_t cfg_type_portiplist;
 static cfg_type_t cfg_type_querysource4;
@@ -785,7 +786,10 @@ parse_serverid(cfg_parser_t *pctx, const cfg_type_t *type,
 		return (cfg_create_obj(pctx, &cfg_type_none, ret));
 	if (pctx->token.type == isc_tokentype_string &&
 	    strcasecmp(TOKEN_STRING(pctx), "hostname") == 0) {
-		return (cfg_create_obj(pctx, &cfg_type_hostname, ret));
+		result = cfg_create_obj(pctx, &cfg_type_hostname, ret);
+		if (result == ISC_R_SUCCESS)
+			(*ret)->value.boolean = ISC_TRUE;
+		return (result);
 	}
 	cfg_ungettoken(pctx);
 	return (cfg_parse_qstring(pctx, type, ret));
@@ -881,6 +885,63 @@ static cfg_type_t cfg_type_bracketed_portlist = {
 	&cfg_rep_list, &cfg_type_portrange
 };
 
+static const char *cookiealg_enums[] = { "aes", "sha1", "sha256", NULL };
+static cfg_type_t cfg_type_cookiealg = {
+	"cookiealg", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum,
+	&cfg_rep_string, &cookiealg_enums };
+
+/*%
+ * fetch-quota-params
+ */
+
+static cfg_tuplefielddef_t fetchquota_fields[] = {
+	{ "frequency", &cfg_type_uint32, 0 },
+	{ "low", &cfg_type_fixedpoint, 0 },
+	{ "high", &cfg_type_fixedpoint, 0 },
+	{ "discount", &cfg_type_fixedpoint, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_fetchquota = {
+	"fetchquota", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, fetchquota_fields
+};
+
+/*%
+ * fetches-per-server or fetches-per-zone
+ */
+
+static const char *response_enums[] = { "drop", "fail", NULL };
+
+static isc_result_t
+parse_optional_response(cfg_parser_t *pctx, const cfg_type_t *type,
+			cfg_obj_t **ret)
+{
+	return (parse_enum_or_other(pctx, type, &cfg_type_void, ret));
+}
+
+static void
+doc_optional_response(cfg_printer_t *pctx, const cfg_type_t *type) {
+	UNUSED(type);
+	cfg_print_cstr(pctx, "[ ( drop | fail ) ]");
+}
+
+static cfg_type_t cfg_type_responsetype = {
+	"responsetype", parse_optional_response, cfg_print_ustring,
+	doc_optional_response, &cfg_rep_string, response_enums
+};
+
+static cfg_tuplefielddef_t fetchesper_fields[] = {
+	{ "fetches", &cfg_type_uint32, 0 },
+	{ "response", &cfg_type_responsetype, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_fetchesper = {
+	"fetchesper", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, fetchesper_fields
+};
+
 /*%
  * Clauses that can be found within the top level of the named.conf
  * file only.
@@ -934,6 +995,8 @@ options_clauses[] = {
 	{ "avoid-v6-udp-ports", &cfg_type_bracketed_portlist, 0 },
 	{ "bindkeys-file", &cfg_type_qstring, 0 },
 	{ "blackhole", &cfg_type_bracketed_aml, 0 },
+	{ "cookie-secret", &cfg_type_sstring, 0 },
+	{ "cookie-algorithm", &cfg_type_cookiealg, 0 },
 	{ "coresize", &cfg_type_size, 0 },
 	{ "datasize", &cfg_type_size, 0 },
 	{ "session-keyfile", &cfg_type_qstringornone, 0 },
@@ -964,11 +1027,8 @@ options_clauses[] = {
 	{ "keep-response-order", &cfg_type_bracketed_aml, 0 },
 	{ "listen-on", &cfg_type_listenon, CFG_CLAUSEFLAG_MULTI },
 	{ "listen-on-v6", &cfg_type_listenon, CFG_CLAUSEFLAG_MULTI },
-#ifdef ISC_PLATFORM_USESIT
-	{ "sit-secret", &cfg_type_sstring, 0 },
-#else
-	{ "sit-secret", &cfg_type_sstring, CFG_CLAUSEFLAG_NOTCONFIGURED },
-#endif
+	{ "lock-file", &cfg_type_qstringornone, 0 },
+	{ "sit-secret", &cfg_type_sstring, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "managed-keys-directory", &cfg_type_qstring, 0 },
 	{ "match-mapped-addresses", &cfg_type_boolean, 0 },
 	{ "max-rsa-exponent-size", &cfg_type_uint32, 0 },
@@ -1106,10 +1166,11 @@ static cfg_type_t cfg_type_masterstyle = {
  *  response-policy {
  *	zone <string> [ policy (given|disabled|passthru|drop|tcp-only|
  *					nxdomain|nodata|cname <domain> ) ]
- *		      [ recursive-only yes|no ] [ max-policy-ttl number ] ;
- *  } [ recursive-only yes|no ] [ max-policy-ttl number ] ;
+ *		      [ recursive-only yes|no ] [ log yes|no ]
+ *		      [ max-policy-ttl number ] ;
+ *  } [ recursive-only yes|no ] [ max-policy-ttl number ]
  *	 [ break-dnssec yes|no ] [ min-ns-dots number ]
- *	 [ qname-wait-recurse yes|no ]
+ *	 [ qname-wait-recurse yes|no ] ;
  */
 
 static void
@@ -1167,7 +1228,7 @@ cleanup:
 }
 
 /*
- * Parse a tuple consisting of any kind of  required field followed
+ * Parse a tuple consisting of any kind of required field followed
  * by 2 or more optional keyvalues that can be in any order.
  */
 static isc_result_t
@@ -1296,6 +1357,7 @@ static cfg_tuplefielddef_t rpz_zone_fields[] = {
 	{ "zone name", &cfg_type_rpz_zone, 0 },
 	{ "policy", &cfg_type_rpz_policy, 0 },
 	{ "recursive-only", &cfg_type_boolean, 0 },
+	{ "log", &cfg_type_boolean, 0 },
 	{ "max-policy-ttl", &cfg_type_uint32, 0 },
 	{ NULL, NULL, 0 }
 };
@@ -1357,15 +1419,12 @@ static cfg_type_t cfg_type_rrl = {
 	&cfg_rep_map, rrl_clausesets
 };
 
-
-
 /*%
  * dnssec-lookaside
  */
 
 static void
-print_lookaside(cfg_printer_t *pctx, const cfg_obj_t *obj)
-{
+print_lookaside(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	const cfg_obj_t *domain = obj->value.tuple[0];
 
 	if (domain->value.string.length == 4 &&
@@ -1507,13 +1566,13 @@ view_clauses[] = {
 	{ "empty-server", &cfg_type_astring, 0 },
 	{ "empty-zones-enable", &cfg_type_boolean, 0 },
 	{ "fetch-glue", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
+	{ "fetch-quota-params", &cfg_type_fetchquota, 0 },
+	{ "fetches-per-server", &cfg_type_fetchesper, 0 },
+	{ "fetches-per-zone", &cfg_type_fetchesper, 0 },
 	{ "ixfr-from-differences", &cfg_type_ixfrdifftype, 0 },
 	{ "lame-ttl", &cfg_type_ttlval, 0 },
-#ifdef ISC_PLATFORM_USESIT
-	{ "nosit-udp-size", &cfg_type_uint32, 0 },
-#else
-	{ "nosit-udp-size", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTCONFIGURED },
-#endif
+	{ "nocookie-udp-size", &cfg_type_uint32, 0 },
+	{ "nosit-udp-size", &cfg_type_uint32, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "max-acache-size", &cfg_type_sizenodefault, 0 },
 	{ "max-cache-size", &cfg_type_sizenodefault, 0 },
 	{ "max-cache-ttl", &cfg_type_uint32, 0 },
@@ -1526,6 +1585,7 @@ view_clauses[] = {
 	{ "minimal-responses", &cfg_type_boolean, 0 },
 	{ "nta-recheck", &cfg_type_ttlval, 0 },
 	{ "nta-lifetime", &cfg_type_ttlval, 0 },
+	{ "nxdomain-redirect", &cfg_type_astring, 0 },
 	{ "prefetch", &cfg_type_prefetch, 0 },
 	{ "preferred-glue", &cfg_type_astring, 0 },
 	{ "no-case-compress", &cfg_type_bracketed_aml, 0 },
@@ -1540,16 +1600,14 @@ view_clauses[] = {
 	{ "queryport-pool-updateinterval", &cfg_type_uint32,
 	  CFG_CLAUSEFLAG_OBSOLETE },
 	{ "recursion", &cfg_type_boolean, 0 },
-#ifdef ISC_PLATFORM_USESIT
-	{ "request-sit", &cfg_type_boolean, 0 },
-#else
-	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTCONFIGURED },
-#endif
+	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "request-nsid", &cfg_type_boolean, 0 },
+	{ "require-server-cookie", &cfg_type_boolean, 0 },
 	{ "resolver-query-timeout", &cfg_type_uint32, 0 },
 	{ "rfc2308-type1", &cfg_type_boolean, CFG_CLAUSEFLAG_NYI },
 	{ "root-delegation-only",  &cfg_type_optional_exclude, 0 },
 	{ "rrset-order", &cfg_type_rrsetorder, 0 },
+	{ "send-cookie", &cfg_type_boolean, 0 },
 	{ "servfail-ttl", &cfg_type_ttlval, 0 },
 	{ "sortlist", &cfg_type_bracketed_aml, 0 },
 	{ "suppress-initial-notify", &cfg_type_boolean, CFG_CLAUSEFLAG_NYI },
@@ -1726,24 +1784,6 @@ LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_bindkeys = {
 	&cfg_rep_map, bindkeys_clausesets
 };
 
-/*% The new-zone-file syntax (for zones added by 'rndc addzone') */
-static cfg_clausedef_t
-newzones_clauses[] = {
-	{ "zone", &cfg_type_zone, CFG_CLAUSEFLAG_MULTI },
-	{ NULL, NULL, 0 }
-};
-
-static cfg_clausedef_t *
-newzones_clausesets[] = {
-	newzones_clauses,
-	NULL
-};
-
-LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_newzones = {
-	"newzones", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
-	&cfg_rep_map, newzones_clausesets
-};
-
 /*% The "options" statement syntax. */
 
 static cfg_clausedef_t *
@@ -1840,11 +1880,8 @@ server_clauses[] = {
 	{ "request-expire", &cfg_type_boolean, 0 },
 	{ "request-ixfr", &cfg_type_boolean, 0 },
 	{ "request-nsid", &cfg_type_boolean, 0 },
-#ifdef ISC_PLATFORM_USESIT
-	{ "request-sit", &cfg_type_boolean, 0 },
-#else
-	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTCONFIGURED },
-#endif
+	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
+	{ "send-cookie", &cfg_type_boolean, 0 },
 	{ "support-ixfr", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
 	{ "transfer-source", &cfg_type_sockaddr4wild, 0 },
@@ -1950,7 +1987,6 @@ LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_addzoneconf = {
 	"addzoneconf", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
 	&cfg_rep_map, addzoneconf_clausesets
 };
-
 
 static isc_result_t
 parse_unitstring(char *str, isc_resourcevalue_t *valuep) {

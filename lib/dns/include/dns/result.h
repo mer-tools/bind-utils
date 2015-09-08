@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -154,8 +154,11 @@
 #define DNS_R_NOTDYNAMIC 		(ISC_RESULTCLASS_DNS + 108)
 #define DNS_R_BADEUI	 		(ISC_RESULTCLASS_DNS + 109)
 #define DNS_R_NTACOVERED		(ISC_RESULTCLASS_DNS + 110)
+#define DNS_R_BADCDS			(ISC_RESULTCLASS_DNS + 111)
+#define DNS_R_BADCDNSKEY		(ISC_RESULTCLASS_DNS + 112)
+#define DNS_R_OPTERR			(ISC_RESULTCLASS_DNS + 113)
 
-#define DNS_R_NRESULTS			111	/*%< Number of results */
+#define DNS_R_NRESULTS			114	/*%< Number of results */
 
 /*
  * DNS wire format rcodes.
@@ -174,6 +177,11 @@
 #define DNS_R_NXRRSET			(ISC_RESULTCLASS_DNSRCODE + 8)
 #define DNS_R_NOTAUTH			(ISC_RESULTCLASS_DNSRCODE + 9)
 #define DNS_R_NOTZONE			(ISC_RESULTCLASS_DNSRCODE + 10)
+#define DNS_R_RCODE11			(ISC_RESULTCLASS_DNSRCODE + 11)
+#define DNS_R_RCODE12			(ISC_RESULTCLASS_DNSRCODE + 12)
+#define DNS_R_RCODE13			(ISC_RESULTCLASS_DNSRCODE + 13)
+#define DNS_R_RCODE14			(ISC_RESULTCLASS_DNSRCODE + 14)
+#define DNS_R_RCODE15			(ISC_RESULTCLASS_DNSRCODE + 15)
 #define DNS_R_BADVERS			(ISC_RESULTCLASS_DNSRCODE + 16)
 
 #define DNS_R_NRCODERESULTS		17	/*%< Number of rcode results */

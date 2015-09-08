@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -58,6 +58,12 @@ isc__rdatalist_addclosest(dns_rdataset_t *rdataset, dns_name_t *name);
 isc_result_t
 isc__rdatalist_getclosest(dns_rdataset_t *rdataset, dns_name_t *name,
 			  dns_rdataset_t *neg, dns_rdataset_t *negsig);
+
+void
+isc__rdatalist_setownercase(dns_rdataset_t *rdataset, const dns_name_t *name);
+
+void
+isc__rdatalist_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name);
 
 ISC_LANG_ENDDECLS
 
